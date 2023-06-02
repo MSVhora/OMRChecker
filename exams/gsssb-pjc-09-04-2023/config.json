@@ -1,0 +1,11 @@
+{
+  "dimensions": {
+    "display_height": 480,
+    "display_width": 720,
+    "processing_height": 3508,
+    "processing_width": 2480
+  },
+  "outputs": {
+    "show_image_level": 2
+  }
+}

@@ -11,6 +11,7 @@ import argparse
 from pathlib import Path
 
 from src.entry import entry_point
+from src.entry import process_omr
 from src.logger import logger
 
 
@@ -84,3 +85,6 @@ def entry_point_for_args(args):
 if __name__ == "__main__":
     args = parse_args()
     entry_point_for_args(args)
+
+def processOMRFile(exam, omrPath):
+    return process_omr(exam, omrPath)

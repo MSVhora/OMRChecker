@@ -307,6 +307,39 @@ def process_files(
     print_stats(start_time, files_counter, tuning_config)
 
 
+def process_file(file_path, template, mapping_path):
+    file_name = file_path.name
+
+    in_omr = cv2.imread(str(file_path), cv2.IMREAD_GRAYSCALE)
+
+    template.image_instance_ops.reset_all_save_img()
+
+    template.image_instance_ops.append_save_img(1, in_omr)
+
+    in_omr = template.image_instance_ops.apply_preprocessors(
+        file_path, in_omr, template
+    )
+
+    # if in_omr is None:
+    # return error
+
+    # uniquify
+    file_id = str(file_name)
+    (
+        response_dict,
+        final_marked,
+        multi_marked,
+        _,
+    ) = template.image_instance_ops.read_omr_response(
+        template, image=in_omr, name=file_id
+    )
+
+    # TODO: move inner try catch here
+    # concatenate roll nos, set unmarked responses, etc
+    omr_response = get_concatenated_response(response_dict, template)
+    return evaluateOMR(omr_response, mapping_path)
+
+
 def check_and_move(error_code, file_path, filepath2):
     # TODO: fix file movement into error/multimarked/invalid etc again
     STATS.files_not_moved += 1
@@ -341,3 +374,66 @@ def print_stats(start_time, files_counter, tuning_config):
         log(
             "\nTip: To see some awesome visuals, open config.json and increase 'show_image_level'"
         )
+
+
+def process_omr(exam, omrPath):
+    dir_path = os.path.dirname(__file__)
+    exam_dir = os.path.join(dir_path, "../exams", exam)
+
+    config_path = Path(os.path.join(exam_dir, "config.json"))
+    config = open_config_with_defaults(config_path)
+
+    template_path = Path(os.path.join(exam_dir, "template.json"))
+    template = Template(template_path, config)
+
+    mapping_path = Path(os.path.join(exam_dir, "mapping.csv"))
+    return process_file(Path(omrPath), template, mapping_path)
+
+
+def evaluateOMR(omr_response, mapping_path):
+    omrResponse = {}
+    omrResponse["rollNo"] = omr_response["Roll"]
+    omrResponse["series"] = omr_response["bookletNo"]
+    omrResponse["result"] = []
+
+    # Fetch Maping
+    answer_key = pd.read_csv(mapping_path)
+    questions = answer_key["question"].tolist()
+    answers = answer_key["answer"].tolist()
+    seriesMap = answer_key[omrResponse["series"]].tolist()
+    score  = 0
+    not_attempted = 0
+    right_answers = 0
+    wrong_answers = 0
+    valid_answers = ["A", "B", "C", "D"]
+
+    for i in questions:
+        row = {}
+        row["question"] = i
+        row["answer"] = omr_response[f"q{i}"]
+        row["correctAnswer"] = answers[seriesMap[i - 1] - 1]
+        mark = 0
+        if row["answer"] in valid_answers:
+            if row["correctAnswer"] == row["answer"]:
+                right_answers = right_answers + 1
+                mark = 1
+            else:
+                wrong_answers = wrong_answers + 1
+                mark = -(1/3)
+        elif row["answer"] == "E":
+            not_attempted = not_attempted + 1
+            mark = 0
+        else:
+            wrong_answers = wrong_answers + 1
+            mark = -(1/3)
+
+        row["mark"] = mark
+        score = score + mark
+        omrResponse["result"].append(row)
+    
+    omrResponse["score"] = score
+    omrResponse["right_answers"] = right_answers
+    omrResponse["wrong_answers"] = wrong_answers
+    omrResponse["attempted"] = right_answers + wrong_answers
+    omrResponse["not_attempted"] = not_attempted
+    return omrResponse
