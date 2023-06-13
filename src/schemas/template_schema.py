@@ -71,6 +71,7 @@ TEMPLATE_SCHEMA = {
                         "type": "string",
                         "enum": [
                             "CropOnMarkers",
+                            "CropPageOnMarkers",
                             "CropPage",
                             "FeatureBasedAlignment",
                             "GaussianBlur",
@@ -175,6 +176,22 @@ TEMPLATE_SCHEMA = {
                                     "properties": {
                                         "morphKernel": two_positive_integers
                                     },
+                                }
+                            }
+                        },
+                    },
+                    {
+                        "if": {"properties": {"name": {"const": "CropPageOnMarkers"}}},
+                        "then": {
+                            "properties": {
+                                "options": {
+                                    "type": "object",
+                                    "additionalProperties": False,
+                                    "properties": {
+                                        "shape": {"type": "string"},
+                                        "shapeArea": {"type": "integer"},
+                                    },
+                                    "required": ["shape", "shapeArea"],
                                 }
                             }
                         },
